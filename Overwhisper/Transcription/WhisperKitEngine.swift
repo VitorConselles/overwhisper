@@ -14,6 +14,9 @@ actor WhisperKitEngine: TranscriptionEngine {
         self.modelManager = modelManager
     }
 
+    private static let maxRetries = 3
+    private static let retryDelaySeconds: UInt64 = 5
+
     func initialize() async {
         // Prevent concurrent initialization - check and set atomically before any await
         guard !isInitializing else {
@@ -33,44 +36,55 @@ actor WhisperKitEngine: TranscriptionEngine {
 
         AppLogger.transcription.info("Initializing WhisperKit with model: \(modelName)")
 
-        do {
-            await MainActor.run {
-                appState.isDownloadingModel = true
-            }
+        // Check if model is already downloaded locally to avoid network dependency
+        let modelAlreadyDownloaded = await appState.downloadedModels.contains(modelName)
 
-            // Let WhisperKit handle model downloading and loading
-            whisperKit = try await WhisperKit(
-                model: modelName,
-                computeOptions: ModelComputeOptions(
-                    audioEncoderCompute: .cpuAndNeuralEngine,
-                    textDecoderCompute: .cpuAndNeuralEngine
-                ),
-                verbose: true,
-                logLevel: .debug,
-                prewarm: true,
-                load: true,
-                download: true
-            )
+        for attempt in 1...Self.maxRetries {
+            do {
+                await MainActor.run {
+                    appState.isDownloadingModel = true
+                }
 
-            isInitialized = true
-            currentModel = modelName
+                whisperKit = try await WhisperKit(
+                    model: modelName,
+                    computeOptions: ModelComputeOptions(
+                        audioEncoderCompute: .cpuAndNeuralEngine,
+                        textDecoderCompute: .cpuAndNeuralEngine
+                    ),
+                    verbose: true,
+                    logLevel: .debug,
+                    prewarm: true,
+                    load: true,
+                    download: !modelAlreadyDownloaded
+                )
 
-            await MainActor.run {
-                appState.isDownloadingModel = false
-                appState.isModelDownloaded = true
-                appState.downloadedModels.insert(modelName)
-            }
+                isInitialized = true
+                currentModel = modelName
 
-            // Refresh the model list
-            await modelManager.scanForModels()
+                await MainActor.run {
+                    appState.isDownloadingModel = false
+                    appState.isModelDownloaded = true
+                    appState.downloadedModels.insert(modelName)
+                }
 
-            AppLogger.transcription.info("WhisperKit initialized successfully")
+                // Refresh the model list
+                await modelManager.scanForModels()
 
-        } catch {
-            AppLogger.transcription.error("Failed to initialize WhisperKit: \(error.localizedDescription)")
-            await MainActor.run {
-                appState.isDownloadingModel = false
-                appState.lastError = "Failed to initialize WhisperKit: \(error.localizedDescription)"
+                AppLogger.transcription.info("WhisperKit initialized successfully")
+                return
+
+            } catch {
+                AppLogger.transcription.error("Failed to initialize WhisperKit (attempt \(attempt)/\(Self.maxRetries)): \(error.localizedDescription)")
+
+                if attempt < Self.maxRetries {
+                    AppLogger.transcription.info("Retrying in \(Self.retryDelaySeconds) seconds...")
+                    try? await Task.sleep(nanoseconds: Self.retryDelaySeconds * 1_000_000_000)
+                } else {
+                    await MainActor.run {
+                        appState.isDownloadingModel = false
+                        appState.lastError = "Failed to initialize WhisperKit: \(error.localizedDescription)"
+                    }
+                }
             }
         }
     }
@@ -89,12 +103,26 @@ actor WhisperKitEngine: TranscriptionEngine {
 
         AppLogger.transcription.debug("Transcribing audio from: \(audioURL.path)")
 
-        // Get language setting
+        // Get language and task settings
         let language = await appState.language
+        let shouldTranslate = await appState.translateToEnglish
+
+        // When auto-detect is selected, detect language first to avoid English bias
+        let resolvedLanguage: String?
+        if language == "auto" {
+            let detected = try? await whisperKit.detectLanguage(audioPath: audioURL.path)
+            resolvedLanguage = detected?.language
+            if let lang = resolvedLanguage {
+                AppLogger.transcription.debug("Auto-detected language: \(lang)")
+            }
+        } else {
+            resolvedLanguage = language
+        }
+
         let decodingOptions = DecodingOptions(
             verbose: true,
-            task: .transcribe,
-            language: language == "auto" ? nil : language,
+            task: shouldTranslate ? .translate : .transcribe,
+            language: resolvedLanguage,
             temperature: 0.0,
             temperatureFallbackCount: 5,
             sampleLength: 224,
