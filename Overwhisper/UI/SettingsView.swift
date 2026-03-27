@@ -191,12 +191,20 @@ struct ModelsSettingsView: View {
                         Text(name).tag(code)
                     }
                 }
+
+                Toggle("Translate to English", isOn: $appState.translateToEnglish)
             } header: {
                 Text("Language")
             } footer: {
-                Text("Select the language you'll be speaking, or Auto-detect to let the model identify it.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if appState.translateToEnglish {
+                    Text("Audio will be translated to English. Requires a multilingual model.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Select the language you'll be speaking, or Auto-detect to let the model identify it.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
             // Cloud API Section

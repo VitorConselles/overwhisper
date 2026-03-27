@@ -2,11 +2,18 @@ import Foundation
 
 struct OpenAIEngine: TranscriptionEngine {
     private let apiKey: String
-    private let baseURL = "https://api.openai.com/v1/audio/transcriptions"
+    private let translateToEnglish: Bool
     private static let requestTimeoutSeconds: TimeInterval = 30
 
-    init(apiKey: String) {
+    private var baseURL: String {
+        translateToEnglish
+            ? "https://api.openai.com/v1/audio/translations"
+            : "https://api.openai.com/v1/audio/transcriptions"
+    }
+
+    init(apiKey: String, translateToEnglish: Bool = false) {
         self.apiKey = apiKey
+        self.translateToEnglish = translateToEnglish
     }
 
     func transcribe(audioURL: URL) async throws -> String {

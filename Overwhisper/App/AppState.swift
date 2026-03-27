@@ -256,6 +256,9 @@ class AppState: ObservableObject {
     @Published var language: String {
         didSet { UserDefaults.standard.set(language, forKey: "language") }
     }
+    @Published var translateToEnglish: Bool {
+        didSet { UserDefaults.standard.set(translateToEnglish, forKey: "translateToEnglish") }
+    }
     @Published var enableCloudFallback: Bool {
         didSet { UserDefaults.standard.set(enableCloudFallback, forKey: "enableCloudFallback") }
     }
@@ -359,6 +362,7 @@ class AppState: ObservableObject {
         self.whisperModel = WhisperModel(rawValue: modelStr) ?? .smallEn
 
         self.language = UserDefaults.standard.string(forKey: "language") ?? "auto"
+        self.translateToEnglish = UserDefaults.standard.bool(forKey: "translateToEnglish")
         self.enableCloudFallback = UserDefaults.standard.bool(forKey: "enableCloudFallback")
 
         if let apiKeyData = try? KeychainHelper.load(key: "openAIAPIKey"),
@@ -458,6 +462,7 @@ class AppState: ObservableObject {
         transcriptionEngine = .whisperKit
         whisperModel = .smallEn
         language = "auto"
+        translateToEnglish = false
         enableCloudFallback = false
         playSoundOnCompletion = true
         playSoundOnStart = false
