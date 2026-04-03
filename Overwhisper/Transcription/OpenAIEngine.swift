@@ -3,6 +3,7 @@ import Foundation
 struct OpenAIEngine: TranscriptionEngine {
     private let apiKey: String
     private let translateToEnglish: Bool
+    private let customVocabulary: String
     private static let requestTimeoutSeconds: TimeInterval = 30
 
     private var baseURL: String {
@@ -11,9 +12,10 @@ struct OpenAIEngine: TranscriptionEngine {
             : "https://api.openai.com/v1/audio/transcriptions"
     }
 
-    init(apiKey: String, translateToEnglish: Bool = false) {
+    init(apiKey: String, translateToEnglish: Bool = false, customVocabulary: String = "") {
         self.apiKey = apiKey
         self.translateToEnglish = translateToEnglish
+        self.customVocabulary = customVocabulary
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -50,6 +52,13 @@ struct OpenAIEngine: TranscriptionEngine {
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n".data(using: .utf8)!)
         body.append("json\r\n".data(using: .utf8)!)
+
+        // Add prompt field for custom vocabulary
+        if !customVocabulary.isEmpty {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(customVocabulary)\r\n".data(using: .utf8)!)
+        }
 
         // Close boundary
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)

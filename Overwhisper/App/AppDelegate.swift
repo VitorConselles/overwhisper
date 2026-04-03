@@ -472,7 +472,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             transcriptionEngine = engine  // Assign first so it's available
             await engine.initialize()
         case .openAI:
-            transcriptionEngine = OpenAIEngine(apiKey: appState.openAIAPIKey, translateToEnglish: appState.translateToEnglish)
+            transcriptionEngine = OpenAIEngine(apiKey: appState.openAIAPIKey, translateToEnglish: appState.translateToEnglish, customVocabulary: appState.customVocabulary)
         }
 
         AppLogger.app.info("Engine initialization complete")
@@ -697,7 +697,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         appState.addDebugLog("Attempting cloud fallback with OpenAI", source: "Transcription")
         showNotification(title: "Fallback", body: "Local transcription failed, trying cloud...")
 
-        let openAIEngine = OpenAIEngine(apiKey: appState.openAIAPIKey, translateToEnglish: appState.translateToEnglish)
+        let openAIEngine = OpenAIEngine(apiKey: appState.openAIAPIKey, translateToEnglish: appState.translateToEnglish, customVocabulary: appState.customVocabulary)
 
         do {
             let text = try await openAIEngine.transcribe(audioURL: audioURL)

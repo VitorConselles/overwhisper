@@ -109,9 +109,10 @@ actor WhisperKitEngine: TranscriptionEngine {
 
         AppLogger.transcription.debug("Transcribing audio from: \(audioURL.path)")
 
-        // Get language and task settings
+        // Get language, task, and vocabulary settings
         let language = await appState.language
         let shouldTranslate = await appState.translateToEnglish
+        let customVocabulary = await appState.customVocabulary
 
         // When auto-detect is selected, detect language first to avoid English bias
         let resolvedLanguage: String?
@@ -125,6 +126,15 @@ actor WhisperKitEngine: TranscriptionEngine {
             resolvedLanguage = language
         }
 
+        // Encode custom vocabulary as prompt tokens to bias spelling
+        var promptTokens: [Int]?
+        if !customVocabulary.isEmpty, let tokenizer = whisperKit.tokenizer {
+            let promptText = " " + customVocabulary.trimmingCharacters(in: .whitespaces)
+            promptTokens = tokenizer.encode(text: promptText)
+                .filter { $0 < tokenizer.specialTokens.specialTokenBegin }
+            AppLogger.transcription.debug("Custom vocabulary prompt tokens: \(promptTokens?.count ?? 0) tokens")
+        }
+
         let decodingOptions = DecodingOptions(
             verbose: true,
             task: shouldTranslate ? .translate : .transcribe,
@@ -136,7 +146,8 @@ actor WhisperKitEngine: TranscriptionEngine {
             usePrefillCache: true,
             skipSpecialTokens: true,
             withoutTimestamps: true,
-            clipTimestamps: []
+            clipTimestamps: [],
+            promptTokens: promptTokens
         )
 
         // Run transcription with timeout

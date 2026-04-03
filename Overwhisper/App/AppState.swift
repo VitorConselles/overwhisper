@@ -262,6 +262,9 @@ class AppState: ObservableObject {
     @Published var enableCloudFallback: Bool {
         didSet { UserDefaults.standard.set(enableCloudFallback, forKey: "enableCloudFallback") }
     }
+    @Published var customVocabulary: String {
+        didSet { UserDefaults.standard.set(customVocabulary, forKey: "customVocabulary") }
+    }
     @Published var openAIAPIKey: String {
         didSet {
             try? KeychainHelper.save(key: "openAIAPIKey", data: openAIAPIKey.data(using: .utf8) ?? Data())
@@ -364,6 +367,7 @@ class AppState: ObservableObject {
         self.language = UserDefaults.standard.string(forKey: "language") ?? "auto"
         self.translateToEnglish = UserDefaults.standard.bool(forKey: "translateToEnglish")
         self.enableCloudFallback = UserDefaults.standard.bool(forKey: "enableCloudFallback")
+        self.customVocabulary = UserDefaults.standard.string(forKey: "customVocabulary") ?? ""
 
         if let apiKeyData = try? KeychainHelper.load(key: "openAIAPIKey"),
            let apiKey = String(data: apiKeyData, encoding: .utf8) {
@@ -464,6 +468,7 @@ class AppState: ObservableObject {
         language = "auto"
         translateToEnglish = false
         enableCloudFallback = false
+        customVocabulary = ""
         playSoundOnCompletion = true
         playSoundOnStart = false
         showNotificationOnError = true

@@ -207,6 +207,22 @@ struct ModelsSettingsView: View {
                 }
             }
 
+            // Custom Vocabulary
+            Section {
+                TextEditor(text: $appState.customVocabulary)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 60, maxHeight: 100)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.secondary.opacity(0.05))
+                    .cornerRadius(6)
+            } header: {
+                Text("Custom Vocabulary")
+            } footer: {
+                Text("Enter names, acronyms, or terms that get misspelled. Works best as a natural phrase, e.g. \"Meeting with Hal Shin at Overseed AI about WhisperKit.\"")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             // Cloud API Section
             Section {
                 HStack {
